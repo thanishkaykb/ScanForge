@@ -59,6 +59,7 @@ function ScanForge() {
   const [copied, setCopied] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [email_user, setEmailUser] = useState<string>("");
 
   const [url, setUrl] = useState("");
