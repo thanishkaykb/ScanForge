@@ -7,8 +7,8 @@ import { z } from "zod";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — Craft QR" },
-      { name: "description", content: "Sign in or create your Craft QR account to save and re-download your QR codes." },
+      { title: "Sign in — ScanForge" },
+      { name: "description", content: "Sign in or create your ScanForge account to save and re-download your QR codes." },
     ],
   }),
   component: AuthPage,
@@ -28,9 +28,11 @@ function AuthPage() {
   const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/" });
+      if (active && data.session) navigate({ to: "/app", replace: true });
     });
+    return () => { active = false; };
   }, [navigate]);
 
   const handleEmail = async (e: React.FormEvent) => {
@@ -60,7 +62,7 @@ function AuthPage() {
           password: pwRes.data,
         });
         if (error) throw error;
-        navigate({ to: "/" });
+        navigate({ to: "/app", replace: true });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -81,14 +83,17 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/" });
+    navigate({ to: "/app", replace: true });
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-background via-accent/40 to-background">
       <div className="w-full max-w-md bg-card rounded-3xl shadow-xl p-8 border border-border">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition mb-4">
+          <span aria-hidden>←</span> Back
+        </Link>
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold">Craft QR</h1>
+          <h1 className="text-2xl font-bold">ScanForge</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {mode === "signin" ? "Welcome back" : "Create your account"}
           </p>

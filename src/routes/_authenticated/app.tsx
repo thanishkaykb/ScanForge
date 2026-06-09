@@ -18,14 +18,14 @@ import {
   type SizePreset,
 } from "@/lib/qr-types";
 
-export const Route = createFileRoute("/_authenticated/")({
+export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({
     meta: [
-      { title: "Craft QR — Beautiful, scannable QR codes" },
+      { title: "ScanForge — Generator" },
       { name: "description", content: "Generate styled, print-ready QR codes for URLs, Wi-Fi, files, and more." },
     ],
   }),
-  component: CraftQR,
+  component: ScanForge,
 });
 
 const PATTERNS: Pattern[] = ["square", "rounded", "classy", "diamond", "dots"];
@@ -47,7 +47,7 @@ interface HistoryRow {
   created_at: string;
 }
 
-function CraftQR() {
+function ScanForge() {
   const navigate = useNavigate();
   const [type, setType] = useState<QRType>("url");
   const [theme, setTheme] = useState<Theme>("white");
@@ -146,7 +146,7 @@ function CraftQR() {
 
   const onDownload = async () => {
     if (!hasData) return;
-    await downloadQR({ data, fg, bg, pattern, size: SIZE_PX[size], filename: `craft-qr-${type}` });
+    await downloadQR({ data, fg, bg, pattern, size: SIZE_PX[size], filename: `scanforge-${type}` });
     await saveToHistory();
   };
 
@@ -159,13 +159,13 @@ function CraftQR() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/", replace: true });
   };
 
   const downloadFromHistory = async (h: HistoryRow) => {
     await downloadQR({
       data: h.data, fg: h.fg, bg: h.bg, pattern: h.pattern,
-      size: SIZE_PX[h.size_preset], filename: `craft-qr-${h.qr_type}`,
+      size: SIZE_PX[h.size_preset], filename: `scanforge-${h.qr_type}`,
     });
   };
 
@@ -178,18 +178,10 @@ function CraftQR() {
     <div className="min-h-screen bg-navbar">
       <header className="h-14 px-6 flex items-center justify-between bg-navbar text-navbar-foreground">
         <h1 className="text-lg font-bold">
-          Craft QR <span className="text-white/50 font-normal">by Apollo Studio</span>
+          ScanForge <span className="text-white/50 font-normal">by you</span>
         </h1>
         <div className="flex items-center gap-2">
           <span className="text-xs text-white/60 hidden sm:inline">{email_user}</span>
-          <button
-            onClick={() => setHistoryOpen(true)}
-            className="size-9 rounded-full border border-white/15 text-white/80 hover:bg-white/5 transition flex items-center justify-center"
-            aria-label="History"
-            title="History"
-          >
-            <History className="size-4" />
-          </button>
           <button
             onClick={handleSignOut}
             className="px-3 h-9 text-sm rounded-md border border-white/15 text-white/80 hover:bg-white/5 transition flex items-center gap-1.5"
@@ -243,6 +235,14 @@ function CraftQR() {
                 )}
               >
                 Download QR code
+              </button>
+              <button
+                onClick={() => setHistoryOpen(true)}
+                className="h-11 px-4 rounded-xl border border-border flex items-center gap-1.5 hover:bg-muted transition text-sm font-medium"
+                aria-label="History"
+                title="History"
+              >
+                <History className="size-4" /> History
               </button>
               <button
                 onClick={onCopy}
