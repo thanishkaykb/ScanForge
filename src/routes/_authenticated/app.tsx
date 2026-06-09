@@ -183,14 +183,6 @@ function ScanForge() {
         <div className="flex items-center gap-2">
           <span className="text-xs text-white/60 hidden sm:inline">{email_user}</span>
           <button
-            onClick={() => setHistoryOpen(true)}
-            className="size-9 rounded-full border border-white/15 text-white/80 hover:bg-white/5 transition flex items-center justify-center"
-            aria-label="History"
-            title="History"
-          >
-            <History className="size-4" />
-          </button>
-          <button
             onClick={handleSignOut}
             className="px-3 h-9 text-sm rounded-md border border-white/15 text-white/80 hover:bg-white/5 transition flex items-center gap-1.5"
           >
