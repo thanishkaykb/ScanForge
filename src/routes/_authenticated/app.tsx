@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Copy, Upload, Check, History, LogOut, Trash2, Download } from "lucide-react";
+import { Copy, Upload, Check, History, LogOut, Trash2, Download, Save, Power, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QRPreview, downloadQR } from "@/components/QRPreview";
 import { QRTypeIcon } from "@/components/QRTypeIcon";
@@ -45,6 +45,7 @@ interface HistoryRow {
   theme: Theme;
   size_preset: SizePreset;
   created_at: string;
+  active?: boolean;
 }
 
 function ScanForge() {
@@ -58,6 +59,7 @@ function ScanForge() {
   const [copied, setCopied] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [email_user, setEmailUser] = useState<string>("");
 
   const [url, setUrl] = useState("");
@@ -119,13 +121,34 @@ function ScanForge() {
 
   const hasData = !!data && data.length > 0;
 
-  const handleFile = useCallback((f: File) => {
-    const reader = new FileReader();
-    reader.onload = () => setFileData({ url: String(reader.result), name: f.name });
-    reader.readAsDataURL(f);
+  const [uploading, setUploading] = useState(false);
+  const [savedMsg, setSavedMsg] = useState(false);
+
+  const handleFile = useCallback(async (f: File) => {
+    setUploading(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id ?? "anon";
+      const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${uid}/${Date.now()}-${safeName}`;
+      const { error } = await supabase.storage.from("qr-files").upload(path, f, {
+        cacheControl: "31536000",
+        upsert: false,
+        contentType: f.type || undefined,
+      });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from("qr-files").getPublicUrl(path);
+      setFileData({ url: pub.publicUrl, name: f.name });
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
   }, []);
 
-  const saveToHistory = async () => {
+  const onSave = async () => {
+    if (!hasData) return;
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
     const title =
@@ -135,19 +158,23 @@ function ScanForge() {
       type === "email" ? email.address :
       type === "sms" ? sms.phone :
       fileData?.name ?? type;
-    await supabase.from("qr_history").insert({
+    const { error } = await supabase.from("qr_history").insert({
       user_id: u.user.id,
       qr_type: type,
       title,
       data,
       fg, bg, pattern, theme, size_preset: size,
     });
+    if (!error) {
+      setSavedMsg(true);
+      setTimeout(() => setSavedMsg(false), 1500);
+      if (historyOpen) loadHistory();
+    }
   };
 
   const onDownload = async () => {
     if (!hasData) return;
     await downloadQR({ data, fg, bg, pattern, size: SIZE_PX[size], filename: `scanforge-${type}` });
-    await saveToHistory();
   };
 
   const onCopy = async () => {
@@ -167,6 +194,11 @@ function ScanForge() {
       data: h.data, fg: h.fg, bg: h.bg, pattern: h.pattern,
       size: SIZE_PX[h.size_preset], filename: `scanforge-${h.qr_type}`,
     });
+  };
+
+  const toggleActive = async (h: HistoryRow) => {
+    await supabase.from("qr_history").update({ active: !(h.active ?? true) } as never).eq("id", h.id);
+    loadHistory();
   };
 
   const deleteFromHistory = async (id: string) => {
@@ -237,12 +269,15 @@ function ScanForge() {
                 Download QR code
               </button>
               <button
-                onClick={() => setHistoryOpen(true)}
-                className="h-11 px-4 rounded-xl border border-border flex items-center gap-1.5 hover:bg-muted transition text-sm font-medium"
-                aria-label="History"
-                title="History"
+                onClick={onSave}
+                disabled={!hasData}
+                className={cn(
+                  "h-11 px-4 rounded-xl border flex items-center gap-1.5 transition text-sm font-medium",
+                  savedMsg ? "bg-primary/10 border-primary text-primary" : "border-border hover:bg-muted disabled:opacity-50",
+                )}
+                title="Save to history"
               >
-                <History className="size-4" /> History
+                {savedMsg ? <><Check className="size-4" /> Saved</> : <><Save className="size-4" /> Save</>}
               </button>
               <button
                 onClick={onCopy}
@@ -264,13 +299,25 @@ function ScanForge() {
                 sms={sms} setSms={setSms}
                 fileData={fileData}
                 onFile={handleFile}
+                uploading={uploading}
               />
               <p className="text-sm text-primary/80 mt-3">Your QR code will generate automatically</p>
             </div>
           </section>
 
           <section className="bg-card rounded-2xl shadow-sm p-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">Style your QR</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Style your QR</h2>
+              <button
+                onClick={() => setHistoryOpen(true)}
+                className="size-9 rounded-full border border-border hover:bg-muted hover:border-primary/40 transition flex items-center justify-center text-muted-foreground hover:text-primary"
+                aria-label="History"
+                title="History"
+              >
+                <History className="size-4" />
+              </button>
+            </div>
+
 
             <Label>Theme</Label>
             <div className="grid grid-cols-3 gap-2 mb-5">
@@ -362,36 +409,62 @@ function ScanForge() {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {history.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">No history yet. Download a QR code to save it here.</p>
+                <p className="text-sm text-muted-foreground text-center py-8">No history yet. Click <strong>Save</strong> next to Download to add a QR here.</p>
               )}
-              {history.map((h) => (
-                <div key={h.id} className="border border-border rounded-xl p-3 flex items-center gap-3">
-                  <div className="size-12 rounded-lg flex items-center justify-center shrink-0" style={{ background: h.bg }}>
-                    <QRTypeIcon type={h.qr_type} />
+              {history.map((h) => {
+                const isActive = h.active ?? true;
+                const open = expandedId === h.id;
+                return (
+                  <div key={h.id} className={cn("border rounded-xl transition", open ? "border-primary/40 bg-primary/5" : "border-border", !isActive && "opacity-60")}>
+                    <button
+                      onClick={() => setExpandedId(open ? null : h.id)}
+                      className="w-full p-3 flex items-center gap-3 text-left"
+                    >
+                      <div className="size-12 rounded-lg flex items-center justify-center shrink-0" style={{ background: h.bg }}>
+                        <QRTypeIcon type={h.qr_type} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm capitalize flex items-center gap-2">
+                          {h.qr_type}
+                          {!isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wide">Deactivated</span>}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">{h.title || h.data.slice(0, 40)}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {new Date(h.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                      <ChevronDown className={cn("size-4 text-muted-foreground transition", open && "rotate-180")} />
+                    </button>
+                    {open && (
+                      <div className="px-3 pb-3 grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => downloadFromHistory(h)}
+                          disabled={!isActive}
+                          className="h-9 rounded-lg border border-border hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-xs font-medium"
+                        >
+                          <Download className="size-3.5" /> Download
+                        </button>
+                        <button
+                          onClick={() => toggleActive(h)}
+                          className={cn(
+                            "h-9 rounded-lg border flex items-center justify-center gap-1.5 text-xs font-medium transition",
+                            isActive ? "border-border hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-500/40" : "border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10",
+                          )}
+                          title={isActive ? "Deactivate (keeps in history)" : "Reactivate"}
+                        >
+                          <Power className="size-3.5" /> {isActive ? "Deactivate" : "Reactivate"}
+                        </button>
+                        <button
+                          onClick={() => deleteFromHistory(h.id)}
+                          className="h-9 rounded-lg border border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 flex items-center justify-center gap-1.5 text-xs font-medium"
+                        >
+                          <Trash2 className="size-3.5" /> Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm capitalize">{h.qr_type}</div>
-                    <div className="text-xs text-muted-foreground truncate">{h.title || h.data.slice(0, 40)}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {new Date(h.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => downloadFromHistory(h)}
-                    className="size-8 rounded-lg border border-border hover:bg-muted flex items-center justify-center"
-                    title="Download"
-                  >
-                    <Download className="size-3.5" />
-                  </button>
-                  <button
-                    onClick={() => deleteFromHistory(h.id)}
-                    className="size-8 rounded-lg border border-border hover:bg-destructive/10 hover:text-destructive flex items-center justify-center"
-                    title="Delete"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -549,7 +622,9 @@ function DynamicForm(props: any) {
         }}
       >
         <Upload className="size-5 text-muted-foreground" />
-        <div className="font-medium">{props.fileData ? props.fileData.name : "Click or drag to upload"}</div>
+        <div className="font-medium">
+          {props.uploading ? "Uploading..." : props.fileData ? props.fileData.name : "Click or drag to upload"}
+        </div>
         <div className="text-xs text-muted-foreground">{s.help}</div>
         <input
           type="file"
@@ -558,8 +633,13 @@ function DynamicForm(props: any) {
           onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onFile(f); }}
         />
       </label>
+      {props.fileData && (
+        <p className="text-xs text-muted-foreground mt-2 truncate">
+          Public link: <a href={props.fileData.url} target="_blank" rel="noreferrer" className="text-primary underline">{props.fileData.url}</a>
+        </p>
+      )}
       <p className="text-sm text-primary/80 mt-2">
-        Note: very large files may exceed QR capacity. For big files, host them and use a URL QR instead.
+        Files are uploaded to secure cloud storage and the QR encodes the link — so any file size works.
       </p>
     </div>
   );
