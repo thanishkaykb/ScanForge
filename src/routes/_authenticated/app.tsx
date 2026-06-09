@@ -622,7 +622,9 @@ function DynamicForm(props: any) {
         }}
       >
         <Upload className="size-5 text-muted-foreground" />
-        <div className="font-medium">{props.fileData ? props.fileData.name : "Click or drag to upload"}</div>
+        <div className="font-medium">
+          {props.uploading ? "Uploading..." : props.fileData ? props.fileData.name : "Click or drag to upload"}
+        </div>
         <div className="text-xs text-muted-foreground">{s.help}</div>
         <input
           type="file"
@@ -631,8 +633,13 @@ function DynamicForm(props: any) {
           onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onFile(f); }}
         />
       </label>
+      {props.fileData && (
+        <p className="text-xs text-muted-foreground mt-2 truncate">
+          Public link: <a href={props.fileData.url} target="_blank" rel="noreferrer" className="text-primary underline">{props.fileData.url}</a>
+        </p>
+      )}
       <p className="text-sm text-primary/80 mt-2">
-        Note: very large files may exceed QR capacity. For big files, host them and use a URL QR instead.
+        Files are uploaded to secure cloud storage and the QR encodes the link — so any file size works.
       </p>
     </div>
   );
