@@ -28,9 +28,11 @@ function AuthPage() {
   const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/" });
+      if (active && data.session) navigate({ to: "/app", replace: true });
     });
+    return () => { active = false; };
   }, [navigate]);
 
   const handleEmail = async (e: React.FormEvent) => {
