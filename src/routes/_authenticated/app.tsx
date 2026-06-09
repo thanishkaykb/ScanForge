@@ -18,7 +18,7 @@ import {
   type SizePreset,
 } from "@/lib/qr-types";
 
-export const Route = createFileRoute("/_authenticated/")({
+export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({
     meta: [
       { title: "Craft QR — Beautiful, scannable QR codes" },
