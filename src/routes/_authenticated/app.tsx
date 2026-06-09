@@ -268,12 +268,15 @@ function ScanForge() {
                 Download QR code
               </button>
               <button
-                onClick={() => setHistoryOpen(true)}
-                className="h-11 px-4 rounded-xl border border-border flex items-center gap-1.5 hover:bg-muted transition text-sm font-medium"
-                aria-label="History"
-                title="History"
+                onClick={onSave}
+                disabled={!hasData}
+                className={cn(
+                  "h-11 px-4 rounded-xl border flex items-center gap-1.5 transition text-sm font-medium",
+                  savedMsg ? "bg-primary/10 border-primary text-primary" : "border-border hover:bg-muted disabled:opacity-50",
+                )}
+                title="Save to history"
               >
-                <History className="size-4" /> History
+                {savedMsg ? <><Check className="size-4" /> Saved</> : <><Save className="size-4" /> Save</>}
               </button>
               <button
                 onClick={onCopy}
