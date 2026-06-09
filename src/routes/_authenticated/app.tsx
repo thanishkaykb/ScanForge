@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_authenticated/app")({
       { name: "description", content: "Generate styled, print-ready QR codes for URLs, Wi-Fi, files, and more." },
     ],
   }),
-  component: CraftQR,
+  component: ScanForge,
 });
 
 const PATTERNS: Pattern[] = ["square", "rounded", "classy", "diamond", "dots"];
