@@ -299,6 +299,7 @@ function ScanForge() {
                 sms={sms} setSms={setSms}
                 fileData={fileData}
                 onFile={handleFile}
+                uploading={uploading}
               />
               <p className="text-sm text-primary/80 mt-3">Your QR code will generate automatically</p>
             </div>
