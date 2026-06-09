@@ -407,36 +407,62 @@ function ScanForge() {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {history.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">No history yet. Download a QR code to save it here.</p>
+                <p className="text-sm text-muted-foreground text-center py-8">No history yet. Click <strong>Save</strong> next to Download to add a QR here.</p>
               )}
-              {history.map((h) => (
-                <div key={h.id} className="border border-border rounded-xl p-3 flex items-center gap-3">
-                  <div className="size-12 rounded-lg flex items-center justify-center shrink-0" style={{ background: h.bg }}>
-                    <QRTypeIcon type={h.qr_type} />
+              {history.map((h) => {
+                const isActive = h.active ?? true;
+                const open = expandedId === h.id;
+                return (
+                  <div key={h.id} className={cn("border rounded-xl transition", open ? "border-primary/40 bg-primary/5" : "border-border", !isActive && "opacity-60")}>
+                    <button
+                      onClick={() => setExpandedId(open ? null : h.id)}
+                      className="w-full p-3 flex items-center gap-3 text-left"
+                    >
+                      <div className="size-12 rounded-lg flex items-center justify-center shrink-0" style={{ background: h.bg }}>
+                        <QRTypeIcon type={h.qr_type} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm capitalize flex items-center gap-2">
+                          {h.qr_type}
+                          {!isActive && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wide">Deactivated</span>}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">{h.title || h.data.slice(0, 40)}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {new Date(h.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                      <ChevronDown className={cn("size-4 text-muted-foreground transition", open && "rotate-180")} />
+                    </button>
+                    {open && (
+                      <div className="px-3 pb-3 grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => downloadFromHistory(h)}
+                          disabled={!isActive}
+                          className="h-9 rounded-lg border border-border hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-xs font-medium"
+                        >
+                          <Download className="size-3.5" /> Download
+                        </button>
+                        <button
+                          onClick={() => toggleActive(h)}
+                          className={cn(
+                            "h-9 rounded-lg border flex items-center justify-center gap-1.5 text-xs font-medium transition",
+                            isActive ? "border-border hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-500/40" : "border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10",
+                          )}
+                          title={isActive ? "Deactivate (keeps in history)" : "Reactivate"}
+                        >
+                          <Power className="size-3.5" /> {isActive ? "Deactivate" : "Reactivate"}
+                        </button>
+                        <button
+                          onClick={() => deleteFromHistory(h.id)}
+                          className="h-9 rounded-lg border border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 flex items-center justify-center gap-1.5 text-xs font-medium"
+                        >
+                          <Trash2 className="size-3.5" /> Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm capitalize">{h.qr_type}</div>
-                    <div className="text-xs text-muted-foreground truncate">{h.title || h.data.slice(0, 40)}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {new Date(h.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => downloadFromHistory(h)}
-                    className="size-8 rounded-lg border border-border hover:bg-muted flex items-center justify-center"
-                    title="Download"
-                  >
-                    <Download className="size-3.5" />
-                  </button>
-                  <button
-                    onClick={() => deleteFromHistory(h.id)}
-                    className="size-8 rounded-lg border border-border hover:bg-destructive/10 hover:text-destructive flex items-center justify-center"
-                    title="Delete"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
