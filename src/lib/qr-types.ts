@@ -1,4 +1,4 @@
-export type QRType = "url" | "text" | "wifi" | "email" | "sms" | "image" | "pdf" | "mp3" | "app";
+export type QRType = "url" | "text" | "wifi" | "email" | "sms" | "image" | "pdf" | "docs" | "mp3" | "app";
 
 export const QR_TYPES: { id: QRType; label: string }[] = [
   { id: "url", label: "URL" },
@@ -8,21 +8,24 @@ export const QR_TYPES: { id: QRType; label: string }[] = [
   { id: "sms", label: "SMS" },
   { id: "image", label: "Image" },
   { id: "pdf", label: "PDF" },
+  { id: "docs", label: "Docs" },
   { id: "mp3", label: "MP3" },
   { id: "app", label: "App" },
 ];
 
-export type Theme = "paper" | "midnight" | "pastel";
+export type Theme = "white" | "black" | "paper" | "midnight" | "pastel";
 export type Pattern = "square" | "rounded" | "classy" | "diamond" | "dots";
 export type SizePreset = "social" | "card" | "print";
 
 export const SIZE_PX: Record<SizePreset, number> = {
   social: 1080,
-  card: 1050, // 3.5x2in @ 300dpi -> use 1050 square-ish
-  print: 2400, // 8x10in -> 2400 square at 300dpi
+  card: 1050,
+  print: 2400,
 };
 
 export const THEMES: Record<Theme, { bg: string; fg: string; label: string }> = {
+  white: { bg: "#ffffff", fg: "#000000", label: "White" },
+  black: { bg: "#0a0a0a", fg: "#ffffff", label: "Black" },
   paper: { bg: "#f5ead2", fg: "#3a2a1a", label: "Paper" },
   midnight: { bg: "#0f1226", fg: "#ffffff", label: "Midnight" },
   pastel: { bg: "#f8e4f0", fg: "#5b3a6b", label: "Pastel" },

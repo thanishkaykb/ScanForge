@@ -8,6 +8,7 @@ const gradients: Record<QRType, string> = {
   sms: "linear-gradient(135deg, #fee2e2, #fecaca)",
   image: "linear-gradient(135deg, #dbeafe, #bfdbfe)",
   pdf: "linear-gradient(135deg, #fce7f3, #fbcfe8)",
+  docs: "linear-gradient(135deg, #ccfbf1, #99f6e4)",
   mp3: "linear-gradient(135deg, #ede9fe, #ddd6fe)",
   app: "linear-gradient(135deg, #e0f2fe, #bae6fd)",
 };
@@ -65,6 +66,12 @@ export function QRTypeIcon({ type }: { type: QRType }) {
         return (
           <div className="flex items-center justify-center w-full h-full">
             <div className="bg-white/90 rounded-sm px-1 py-0.5 text-[6px] font-bold text-rose-500">PDF</div>
+          </div>
+        );
+      case "docs":
+        return (
+          <div className="flex items-center justify-center w-full h-full">
+            <div className="bg-white/90 rounded-sm px-1 py-0.5 text-[6px] font-bold text-teal-600">DOC</div>
           </div>
         );
       case "mp3":
