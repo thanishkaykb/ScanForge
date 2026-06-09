@@ -89,6 +89,9 @@ function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-background via-accent/40 to-background">
       <div className="w-full max-w-md bg-card rounded-3xl shadow-xl p-8 border border-border">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition mb-4">
+          <span aria-hidden>←</span> Back
+        </Link>
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold">ScanForge</h1>
           <p className="text-sm text-muted-foreground mt-1">
