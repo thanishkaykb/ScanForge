@@ -45,6 +45,7 @@ interface HistoryRow {
   theme: Theme;
   size_preset: SizePreset;
   created_at: string;
+  active: boolean;
 }
 
 function ScanForge() {
