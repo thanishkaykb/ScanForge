@@ -120,13 +120,34 @@ function ScanForge() {
 
   const hasData = !!data && data.length > 0;
 
-  const handleFile = useCallback((f: File) => {
-    const reader = new FileReader();
-    reader.onload = () => setFileData({ url: String(reader.result), name: f.name });
-    reader.readAsDataURL(f);
+  const [uploading, setUploading] = useState(false);
+  const [savedMsg, setSavedMsg] = useState(false);
+
+  const handleFile = useCallback(async (f: File) => {
+    setUploading(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id ?? "anon";
+      const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${uid}/${Date.now()}-${safeName}`;
+      const { error } = await supabase.storage.from("qr-files").upload(path, f, {
+        cacheControl: "31536000",
+        upsert: false,
+        contentType: f.type || undefined,
+      });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from("qr-files").getPublicUrl(path);
+      setFileData({ url: pub.publicUrl, name: f.name });
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
   }, []);
 
-  const saveToHistory = async () => {
+  const onSave = async () => {
+    if (!hasData) return;
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
     const title =
@@ -136,19 +157,23 @@ function ScanForge() {
       type === "email" ? email.address :
       type === "sms" ? sms.phone :
       fileData?.name ?? type;
-    await supabase.from("qr_history").insert({
+    const { error } = await supabase.from("qr_history").insert({
       user_id: u.user.id,
       qr_type: type,
       title,
       data,
       fg, bg, pattern, theme, size_preset: size,
     });
+    if (!error) {
+      setSavedMsg(true);
+      setTimeout(() => setSavedMsg(false), 1500);
+      if (historyOpen) loadHistory();
+    }
   };
 
   const onDownload = async () => {
     if (!hasData) return;
     await downloadQR({ data, fg, bg, pattern, size: SIZE_PX[size], filename: `scanforge-${type}` });
-    await saveToHistory();
   };
 
   const onCopy = async () => {
@@ -168,6 +193,11 @@ function ScanForge() {
       data: h.data, fg: h.fg, bg: h.bg, pattern: h.pattern,
       size: SIZE_PX[h.size_preset], filename: `scanforge-${h.qr_type}`,
     });
+  };
+
+  const toggleActive = async (h: HistoryRow) => {
+    await supabase.from("qr_history").update({ active: !(h.active ?? true) } as never).eq("id", h.id);
+    loadHistory();
   };
 
   const deleteFromHistory = async (id: string) => {
