@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { Copy, Upload, Check } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Copy, Upload, Check, History, LogOut, Trash2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QRPreview, downloadQR } from "@/components/QRPreview";
 import { QRTypeIcon } from "@/components/QRTypeIcon";
 import { PatternThumb } from "@/components/PatternThumb";
+import { supabase } from "@/integrations/supabase/client";
 import {
   QR_TYPES,
   THEMES,
@@ -17,13 +18,11 @@ import {
   type SizePreset,
 } from "@/lib/qr-types";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "Craft QR — Beautiful, scannable QR codes" },
       { name: "description", content: "Generate styled, print-ready QR codes for URLs, Wi-Fi, files, and more." },
-      { property: "og:title", content: "Craft QR" },
-      { property: "og:description", content: "Beautiful, scannable QR codes in seconds." },
     ],
   }),
   component: CraftQR,
@@ -35,22 +34,55 @@ function escapeWifi(s: string) {
   return s.replace(/([\\;,":])/g, "\\$1");
 }
 
+interface HistoryRow {
+  id: string;
+  qr_type: QRType;
+  title: string | null;
+  data: string;
+  fg: string;
+  bg: string;
+  pattern: Pattern;
+  theme: Theme;
+  size_preset: SizePreset;
+  created_at: string;
+}
+
 function CraftQR() {
+  const navigate = useNavigate();
   const [type, setType] = useState<QRType>("url");
-  const [theme, setTheme] = useState<Theme>("paper");
+  const [theme, setTheme] = useState<Theme>("white");
   const [pattern, setPattern] = useState<Pattern>("square");
-  const [fg, setFg] = useState<string>(THEMES.paper.fg);
-  const [bg, setBg] = useState<string>(THEMES.paper.bg);
+  const [fg, setFg] = useState<string>(THEMES.white.fg);
+  const [bg, setBg] = useState<string>(THEMES.white.bg);
   const [size, setSize] = useState<SizePreset>("social");
   const [copied, setCopied] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [email_user, setEmailUser] = useState<string>("");
 
-  // form state
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [wifi, setWifi] = useState({ ssid: "", enc: "WPA" as "WPA" | "WEP" | "nopass", password: "" });
   const [email, setEmail] = useState({ address: "", subject: "", body: "" });
   const [sms, setSms] = useState({ phone: "", message: "" });
   const [fileData, setFileData] = useState<{ url: string; name: string } | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setEmailUser(data.user?.email ?? ""));
+  }, []);
+
+  const loadHistory = useCallback(async () => {
+    const { data } = await supabase
+      .from("qr_history")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (data) setHistory(data as HistoryRow[]);
+  }, []);
+
+  useEffect(() => {
+    if (historyOpen) loadHistory();
+  }, [historyOpen, loadHistory]);
 
   const applyTheme = (t: Theme) => {
     setTheme(t);
@@ -67,17 +99,17 @@ function CraftQR() {
         return `WIFI:T:${wifi.enc};S:${escapeWifi(wifi.ssid)};${wifi.enc === "nopass" ? "" : `P:${escapeWifi(wifi.password)};`};`;
       case "email": {
         if (!email.address) return "";
-        const params = new URLSearchParams();
-        if (email.subject) params.set("subject", email.subject);
-        if (email.body) params.set("body", email.body);
-        const q = params.toString();
-        return `mailto:${email.address}${q ? `?${q}` : ""}`;
+        const parts: string[] = [];
+        if (email.subject) parts.push(`subject=${encodeURIComponent(email.subject)}`);
+        if (email.body) parts.push(`body=${encodeURIComponent(email.body)}`);
+        return `mailto:${email.address}${parts.length ? `?${parts.join("&")}` : ""}`;
       }
       case "sms":
         if (!sms.phone) return "";
         return `SMSTO:${sms.phone}:${sms.message}`;
       case "image":
       case "pdf":
+      case "docs":
       case "mp3":
         return fileData?.url ?? "";
       case "app":
@@ -87,19 +119,35 @@ function CraftQR() {
 
   const hasData = !!data && data.length > 0;
 
-  const handleFile = useCallback((f: File, maxMB: number) => {
-    if (f.size > maxMB * 1024 * 1024) {
-      alert(`File exceeds ${maxMB}MB limit`);
-      return;
-    }
+  const handleFile = useCallback((f: File) => {
     const reader = new FileReader();
     reader.onload = () => setFileData({ url: String(reader.result), name: f.name });
     reader.readAsDataURL(f);
   }, []);
 
+  const saveToHistory = async () => {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return;
+    const title =
+      type === "url" || type === "app" ? url.trim().slice(0, 80) :
+      type === "text" ? text.slice(0, 80) :
+      type === "wifi" ? wifi.ssid :
+      type === "email" ? email.address :
+      type === "sms" ? sms.phone :
+      fileData?.name ?? type;
+    await supabase.from("qr_history").insert({
+      user_id: u.user.id,
+      qr_type: type,
+      title,
+      data,
+      fg, bg, pattern, theme, size_preset: size,
+    });
+  };
+
   const onDownload = async () => {
     if (!hasData) return;
     await downloadQR({ data, fg, bg, pattern, size: SIZE_PX[size], filename: `craft-qr-${type}` });
+    await saveToHistory();
   };
 
   const onCopy = async () => {
@@ -109,22 +157,50 @@ function CraftQR() {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
+
+  const downloadFromHistory = async (h: HistoryRow) => {
+    await downloadQR({
+      data: h.data, fg: h.fg, bg: h.bg, pattern: h.pattern,
+      size: SIZE_PX[h.size_preset], filename: `craft-qr-${h.qr_type}`,
+    });
+  };
+
+  const deleteFromHistory = async (id: string) => {
+    await supabase.from("qr_history").delete().eq("id", id);
+    loadHistory();
+  };
+
   return (
     <div className="min-h-screen bg-navbar">
-      {/* Navbar */}
       <header className="h-14 px-6 flex items-center justify-between bg-navbar text-navbar-foreground">
         <h1 className="text-lg font-bold">
           Craft QR <span className="text-white/50 font-normal">by Apollo Studio</span>
         </h1>
-        <button className="px-4 py-1.5 text-sm rounded-md border border-white/15 text-white/80 hover:bg-white/5 transition">
-          Use template
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-white/60 hidden sm:inline">{email_user}</span>
+          <button
+            onClick={() => setHistoryOpen(true)}
+            className="size-9 rounded-full border border-white/15 text-white/80 hover:bg-white/5 transition flex items-center justify-center"
+            aria-label="History"
+            title="History"
+          >
+            <History className="size-4" />
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="px-3 h-9 text-sm rounded-md border border-white/15 text-white/80 hover:bg-white/5 transition flex items-center gap-1.5"
+          >
+            <LogOut className="size-3.5" /> Sign out
+          </button>
+        </div>
       </header>
 
-      {/* Main shell */}
       <div className="bg-background rounded-t-3xl min-h-[calc(100vh-3.5rem)] p-4 md:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.6fr_1fr] gap-4 max-w-[1500px] mx-auto">
-          {/* Left: type list */}
           <section className="bg-card rounded-2xl shadow-sm p-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Select QR type</h2>
             <ul className="flex flex-col gap-2">
@@ -133,12 +209,10 @@ function CraftQR() {
                 return (
                   <li key={t.id}>
                     <button
-                      onClick={() => setType(t.id)}
+                      onClick={() => { setType(t.id); setFileData(null); }}
                       className={cn(
                         "w-full flex items-center gap-3 p-2.5 rounded-xl border transition text-left",
-                        active
-                          ? "bg-selected border-selected-border"
-                          : "border-transparent hover:bg-muted",
+                        active ? "bg-selected border-selected-border" : "border-transparent hover:bg-muted",
                       )}
                     >
                       <QRTypeIcon type={t.id} />
@@ -150,12 +224,11 @@ function CraftQR() {
             </ul>
           </section>
 
-          {/* Center: preview + form */}
           <section className="bg-card rounded-2xl shadow-sm p-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Live preview</h2>
             <div
-              className="rounded-2xl p-6 flex items-center justify-center"
-              style={{ backgroundColor: THEMES[theme].bg }}
+              className="rounded-2xl p-6 flex items-center justify-center transition-colors"
+              style={{ backgroundColor: bg }}
             >
               <QRPreview data={data || "https://example.com"} fg={fg} bg={bg} pattern={pattern} size={320} />
             </div>
@@ -166,9 +239,7 @@ function CraftQR() {
                 disabled={!hasData}
                 className={cn(
                   "flex-1 h-11 rounded-full font-medium transition",
-                  hasData
-                    ? "bg-primary text-primary-foreground hover:opacity-90"
-                    : "bg-muted text-muted-foreground cursor-not-allowed",
+                  hasData ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-muted text-muted-foreground cursor-not-allowed",
                 )}
               >
                 Download QR code
@@ -198,7 +269,6 @@ function CraftQR() {
             </div>
           </section>
 
-          {/* Right: style panel */}
           <section className="bg-card rounded-2xl shadow-sm p-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Style your QR</h2>
 
@@ -214,14 +284,14 @@ function CraftQR() {
                   )}
                 >
                   <div
-                    className="size-12 rounded-full"
+                    className="size-12 rounded-full border border-black/10"
                     style={{
                       background:
-                        t === "paper"
-                          ? "radial-gradient(circle at 30% 30%, #fffbe6, #e6d9a8)"
-                          : t === "midnight"
-                          ? "radial-gradient(circle at 30% 30%, #4a5bd8, #0a0a1f)"
-                          : "radial-gradient(circle at 30% 30%, #fff, #f3c7e0 60%, #c7b8e8)",
+                        t === "white" ? "radial-gradient(circle at 30% 30%, #ffffff, #e5e7eb)" :
+                        t === "black" ? "radial-gradient(circle at 30% 30%, #4a4a4a, #050505)" :
+                        t === "paper" ? "radial-gradient(circle at 30% 30%, #fffbe6, #e6d9a8)" :
+                        t === "midnight" ? "radial-gradient(circle at 30% 30%, #4a5bd8, #0a0a1f)" :
+                        "radial-gradient(circle at 30% 30%, #fff, #f3c7e0 60%, #c7b8e8)",
                     }}
                   />
                   <span className="text-xs font-medium">{THEMES[t].label}</span>
@@ -279,6 +349,53 @@ function CraftQR() {
           </section>
         </div>
       </div>
+
+      {historyOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-end" onClick={() => setHistoryOpen(false)}>
+          <div
+            className="bg-card w-full sm:max-w-md h-full sm:h-[90vh] sm:mr-6 sm:rounded-2xl shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-border flex items-center justify-between">
+              <h3 className="font-bold text-lg flex items-center gap-2"><History className="size-5" /> History</h3>
+              <button onClick={() => setHistoryOpen(false)} className="text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {history.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">No history yet. Download a QR code to save it here.</p>
+              )}
+              {history.map((h) => (
+                <div key={h.id} className="border border-border rounded-xl p-3 flex items-center gap-3">
+                  <div className="size-12 rounded-lg flex items-center justify-center shrink-0" style={{ background: h.bg }}>
+                    <QRTypeIcon type={h.qr_type} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm capitalize">{h.qr_type}</div>
+                    <div className="text-xs text-muted-foreground truncate">{h.title || h.data.slice(0, 40)}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      {new Date(h.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => downloadFromHistory(h)}
+                    className="size-8 rounded-lg border border-border hover:bg-muted flex items-center justify-center"
+                    title="Download"
+                  >
+                    <Download className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={() => deleteFromHistory(h.id)}
+                    className="size-8 rounded-lg border border-border hover:bg-destructive/10 hover:text-destructive flex items-center justify-center"
+                    title="Delete"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -308,9 +425,7 @@ function ColorPicker({ value, onChange, rainbow }: { value: string; onChange: (v
     <label
       className="size-8 rounded-full cursor-pointer ring-1 ring-border overflow-hidden relative flex items-center justify-center"
       style={{
-        background: rainbow
-          ? "conic-gradient(from 0deg, red, yellow, lime, cyan, blue, magenta, red)"
-          : "white",
+        background: rainbow ? "conic-gradient(from 0deg, red, yellow, lime, cyan, blue, magenta, red)" : "white",
       }}
     >
       <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -414,11 +529,11 @@ function DynamicForm(props: any) {
       </div>
     );
   }
-  // file uploads
-  const spec: Record<string, { label: string; accept: string; max: number; help: string }> = {
-    image: { label: "Upload Image", accept: "image/*", max: 5, help: "Image files (max 5MB)" },
-    pdf: { label: "Upload PDF", accept: "application/pdf", max: 10, help: "PDF files (max 10MB)" },
-    mp3: { label: "Upload MP3", accept: "audio/mpeg,audio/mp3", max: 10, help: "MP3 files (max 10MB)" },
+  const spec: Record<string, { label: string; accept: string; help: string }> = {
+    image: { label: "Upload Image", accept: "image/*", help: "Any image file — no size limit" },
+    pdf: { label: "Upload PDF", accept: "application/pdf", help: "Any PDF file — no size limit" },
+    docs: { label: "Upload Document", accept: ".doc,.docx,.txt,.rtf,.odt,.xls,.xlsx,.ppt,.pptx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain", help: "DOC, DOCX, TXT, XLS, PPT and more — no size limit" },
+    mp3: { label: "Upload MP3", accept: "audio/mpeg,audio/mp3", help: "Any MP3 file — no size limit" },
   };
   const s = spec[type];
   return (
@@ -430,7 +545,7 @@ function DynamicForm(props: any) {
         onDrop={(e) => {
           e.preventDefault();
           const f = e.dataTransfer.files[0];
-          if (f) props.onFile(f, s.max);
+          if (f) props.onFile(f);
         }}
       >
         <Upload className="size-5 text-muted-foreground" />
@@ -440,10 +555,12 @@ function DynamicForm(props: any) {
           type="file"
           accept={s.accept}
           className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onFile(f, s.max); }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) props.onFile(f); }}
         />
       </label>
-      <p className="text-sm text-primary/80 mt-2">Upload a file and we'll generate a QR code linking to it</p>
+      <p className="text-sm text-primary/80 mt-2">
+        Note: very large files may exceed QR capacity. For big files, host them and use a URL QR instead.
+      </p>
     </div>
   );
 }
