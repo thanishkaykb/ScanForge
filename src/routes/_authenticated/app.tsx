@@ -159,7 +159,7 @@ function ScanForge() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/", replace: true });
   };
 
   const downloadFromHistory = async (h: HistoryRow) => {
