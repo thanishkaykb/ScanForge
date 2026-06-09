@@ -304,7 +304,18 @@ function ScanForge() {
           </section>
 
           <section className="bg-card rounded-2xl shadow-sm p-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">Style your QR</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Style your QR</h2>
+              <button
+                onClick={() => setHistoryOpen(true)}
+                className="size-9 rounded-full border border-border hover:bg-muted hover:border-primary/40 transition flex items-center justify-center text-muted-foreground hover:text-primary"
+                aria-label="History"
+                title="History"
+              >
+                <History className="size-4" />
+              </button>
+            </div>
+
 
             <Label>Theme</Label>
             <div className="grid grid-cols-3 gap-2 mb-5">
