@@ -67,7 +67,8 @@ function ScanForge() {
   const [wifi, setWifi] = useState({ ssid: "", enc: "WPA" as "WPA" | "WEP" | "nopass", password: "" });
   const [email, setEmail] = useState({ address: "", subject: "", body: "" });
   const [sms, setSms] = useState({ phone: "", message: "" });
-  const [fileData, setFileData] = useState<{ url: string; name: string } | null>(null);
+  const [fileData, setFileData] = useState<{ url: string; name: string; path: string } | null>(null);
+  const [savedRedirectUrl, setSavedRedirectUrl] = useState<string>("");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmailUser(data.user?.email ?? ""));
@@ -92,7 +93,7 @@ function ScanForge() {
     setBg(THEMES[t].bg);
   };
 
-  const data = useMemo(() => {
+  const rawData = useMemo(() => {
     switch (type) {
       case "url": return url.trim();
       case "text": return text;
@@ -119,6 +120,12 @@ function ScanForge() {
     }
   }, [type, url, text, wifi, email, sms, fileData]);
 
+  // Once saved, the QR encodes a redirect URL we control, so deactivation actually disables scanning.
+  const data = savedRedirectUrl || rawData;
+
+  // Reset the saved-redirect any time inputs change
+  useEffect(() => { setSavedRedirectUrl(""); }, [type, url, text, wifi, email, sms, fileData]);
+
   const hasData = !!data && data.length > 0;
 
   const [uploading, setUploading] = useState(false);
@@ -128,7 +135,8 @@ function ScanForge() {
     setUploading(true);
     try {
       const { data: u } = await supabase.auth.getUser();
-      const uid = u.user?.id ?? "anon";
+      if (!u.user) throw new Error("Not signed in");
+      const uid = u.user.id;
       const safeName = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${uid}/${Date.now()}-${safeName}`;
       const { error } = await supabase.storage.from("qr-files").upload(path, f, {
@@ -137,11 +145,15 @@ function ScanForge() {
         contentType: f.type || undefined,
       });
       if (error) throw error;
-      const { data: pub } = supabase.storage.from("qr-files").getPublicUrl(path);
-      setFileData({ url: pub.publicUrl, name: f.name });
-    } catch (err) {
+      // Bucket is private — issue a long-lived signed URL for preview/standalone scans
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("qr-files")
+        .createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (signErr || !signed?.signedUrl) throw signErr ?? new Error("Sign failed");
+      setFileData({ url: signed.signedUrl, name: f.name, path });
+    } catch (err: any) {
       console.error(err);
-      alert("Upload failed. Please try again.");
+      alert(`Upload failed: ${err?.message ?? "please try again."}`);
     } finally {
       setUploading(false);
     }
@@ -151,6 +163,7 @@ function ScanForge() {
     if (!hasData) return;
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
+    const isFile = type === "image" || type === "pdf" || type === "docs" || type === "mp3";
     const title =
       type === "url" || type === "app" ? url.trim().slice(0, 80) :
       type === "text" ? text.slice(0, 80) :
@@ -158,17 +171,24 @@ function ScanForge() {
       type === "email" ? email.address :
       type === "sms" ? sms.phone :
       fileData?.name ?? type;
-    const { error } = await supabase.from("qr_history").insert({
+    // For files store the storage path so the redirect endpoint can re-sign on demand;
+    // otherwise store the raw data. The QR encodes /api/public/r/{id} so we can honor active/inactive.
+    const storedData = isFile && fileData?.path ? fileData.path : rawData;
+    const { data: inserted, error } = await supabase.from("qr_history").insert({
       user_id: u.user.id,
       qr_type: type,
       title,
-      data,
+      data: storedData,
       fg, bg, pattern, theme, size_preset: size,
-    });
-    if (!error) {
+    }).select("id").single();
+    if (!error && inserted) {
+      const redirect = `${window.location.origin}/api/public/r/${inserted.id}`;
+      setSavedRedirectUrl(redirect);
       setSavedMsg(true);
-      setTimeout(() => setSavedMsg(false), 1500);
+      setTimeout(() => setSavedMsg(false), 2000);
       if (historyOpen) loadHistory();
+    } else if (error) {
+      alert(`Save failed: ${error.message}`);
     }
   };
 
@@ -190,21 +210,28 @@ function ScanForge() {
   };
 
   const downloadFromHistory = async (h: HistoryRow) => {
+    // Encode the redirect URL so deactivation/reactivation controls the scan result
+    const redirect = `${window.location.origin}/api/public/r/${h.id}`;
     await downloadQR({
-      data: h.data, fg: h.fg, bg: h.bg, pattern: h.pattern,
+      data: redirect, fg: h.fg, bg: h.bg, pattern: h.pattern,
       size: SIZE_PX[h.size_preset], filename: `scanforge-${h.qr_type}`,
     });
   };
 
   const toggleActive = async (h: HistoryRow) => {
-    await supabase.from("qr_history").update({ active: !(h.active ?? true) } as never).eq("id", h.id);
+    const next = !(h.active ?? true);
+    const { error } = await supabase.from("qr_history").update({ active: next } as never).eq("id", h.id);
+    if (error) { alert(`Could not update: ${error.message}`); return; }
+    alert(next ? "QR code reactivated — it will scan again." : "QR code deactivated — scans will show a disabled message until you reactivate it.");
     loadHistory();
   };
 
   const deleteFromHistory = async (id: string) => {
+    if (!confirm("Delete this QR code from history? This cannot be undone.")) return;
     await supabase.from("qr_history").delete().eq("id", id);
     loadHistory();
   };
+
 
   return (
     <div className="min-h-screen bg-navbar">

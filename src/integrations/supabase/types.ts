@@ -37,6 +37,7 @@ export type Database = {
       }
       qr_history: {
         Row: {
+          active: boolean
           bg: string
           created_at: string
           data: string
@@ -50,6 +51,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          active?: boolean
           bg: string
           created_at?: string
           data: string
@@ -63,6 +65,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          active?: boolean
           bg?: string
           created_at?: string
           data?: string
