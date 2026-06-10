@@ -210,8 +210,10 @@ function ScanForge() {
   };
 
   const downloadFromHistory = async (h: HistoryRow) => {
+    // Encode the redirect URL so deactivation/reactivation controls the scan result
+    const redirect = `${window.location.origin}/api/public/r/${h.id}`;
     await downloadQR({
-      data: h.data, fg: h.fg, bg: h.bg, pattern: h.pattern,
+      data: redirect, fg: h.fg, bg: h.bg, pattern: h.pattern,
       size: SIZE_PX[h.size_preset], filename: `scanforge-${h.qr_type}`,
     });
   };
