@@ -232,14 +232,6 @@ function ScanForge() {
     loadHistory();
   };
 
-  const downloadFromHistoryRedirect = async (h: HistoryRow) => {
-    // Re-download using the redirect URL so deactivation control applies
-    const redirect = `${window.location.origin}/api/public/r/${h.id}`;
-    await downloadQR({
-      data: redirect, fg: h.fg, bg: h.bg, pattern: h.pattern,
-      size: SIZE_PX[h.size_preset], filename: `scanforge-${h.qr_type}`,
-    });
-  };
 
   return (
     <div className="min-h-screen bg-navbar">
