@@ -50,6 +50,7 @@ interface HistoryRow {
 
 function ScanForge() {
   const navigate = useNavigate();
+  const [step, setStep] = useState<"type" | "design">("type");
   const [type, setType] = useState<QRType>("url");
   const [theme, setTheme] = useState<Theme>("white");
   const [pattern, setPattern] = useState<Pattern>("square");
