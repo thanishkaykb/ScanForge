@@ -236,194 +236,208 @@ function ScanForge() {
 
   return (
     <div className="min-h-screen bg-navbar">
-      <header className="h-14 px-6 flex items-center justify-between bg-navbar text-navbar-foreground">
-        <h1 className="text-lg font-bold">
-          ScanForge <span className="text-white/50 font-normal">by you</span>
-        </h1>
+      <header className="h-14 px-4 sm:px-6 flex items-center justify-between bg-navbar text-navbar-foreground">
+        <div className="flex items-center gap-2 min-w-0">
+          {step === "design" && (
+            <button
+              onClick={() => setStep("type")}
+              className="size-9 rounded-full border border-white/15 text-white/80 hover:bg-white/10 transition flex items-center justify-center"
+              aria-label="Back to QR type"
+            >
+              <ArrowLeft className="size-4" />
+            </button>
+          )}
+          <h1 className="text-base sm:text-lg font-bold truncate">
+            ScanForge {step === "design" && <span className="text-white/50 font-normal hidden sm:inline">· {QR_TYPES.find(t => t.id === type)?.label}</span>}
+          </h1>
+        </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-white/60 hidden sm:inline">{email_user}</span>
+          <span className="text-xs text-white/60 hidden md:inline">{email_user}</span>
           <button
             onClick={handleSignOut}
-            className="px-3 h-9 text-sm rounded-md border border-white/15 text-white/80 hover:bg-white/5 transition flex items-center gap-1.5"
+            className="px-2 sm:px-3 h-9 text-sm rounded-md border border-white/15 text-white/80 hover:bg-white/5 transition flex items-center gap-1.5"
           >
-            <LogOut className="size-3.5" /> Sign out
+            <LogOut className="size-3.5" /> <span className="hidden sm:inline">Sign out</span>
           </button>
         </div>
       </header>
 
       <div className="bg-background rounded-t-3xl min-h-[calc(100vh-3.5rem)] p-4 md:p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.6fr_1fr] gap-4 max-w-[1500px] mx-auto">
-          <section className="bg-card rounded-2xl shadow-sm p-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">Select QR type</h2>
-            <ul className="flex flex-col gap-2">
-              {QR_TYPES.map((t) => {
-                const active = type === t.id;
-                return (
-                  <li key={t.id}>
-                    <button
-                      onClick={() => { setType(t.id); setFileData(null); }}
-                      className={cn(
-                        "w-full flex items-center gap-3 p-2.5 rounded-xl border transition text-left",
-                        active ? "bg-selected border-selected-border" : "border-transparent hover:bg-muted",
-                      )}
-                    >
-                      <QRTypeIcon type={t.id} />
-                      <span className="font-medium">{t.label}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-
-          <section className="bg-card rounded-2xl shadow-sm p-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">Live preview</h2>
-            <div
-              className="rounded-2xl p-6 flex items-center justify-center transition-colors"
-              style={{ backgroundColor: bg }}
-            >
-              <QRPreview data={data || "https://example.com"} fg={fg} bg={bg} pattern={pattern} size={320} />
-            </div>
-
-            <div className="flex items-center gap-2 mt-4">
-              <button
-                onClick={onDownload}
-                disabled={!hasData}
-                className={cn(
-                  "flex-1 h-11 rounded-full font-medium transition",
-                  hasData ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-muted text-muted-foreground cursor-not-allowed",
-                )}
-              >
-                Download QR code
-              </button>
-              <button
-                onClick={onSave}
-                disabled={!hasData}
-                className={cn(
-                  "h-11 px-4 rounded-xl border flex items-center gap-1.5 transition text-sm font-medium",
-                  savedMsg ? "bg-primary/10 border-primary text-primary" : "border-border hover:bg-muted disabled:opacity-50",
-                )}
-                title="Save to history"
-              >
-                {savedMsg ? <><Check className="size-4" /> Saved</> : <><Save className="size-4" /> Save</>}
-              </button>
-              <button
-                onClick={onCopy}
-                disabled={!hasData}
-                className="size-11 rounded-xl border border-border flex items-center justify-center hover:bg-muted transition disabled:opacity-50"
-                aria-label="Copy QR content"
-              >
-                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-              </button>
-            </div>
-
-            <div className="mt-6">
-              <DynamicForm
-                type={type}
-                url={url} setUrl={setUrl}
-                text={text} setText={setText}
-                wifi={wifi} setWifi={setWifi}
-                email={email} setEmail={setEmail}
-                sms={sms} setSms={setSms}
-                fileData={fileData}
-                onFile={handleFile}
-                uploading={uploading}
-              />
-              <p className="text-sm text-primary/80 mt-3">Your QR code will generate automatically</p>
-            </div>
-          </section>
-
-          <section className="bg-card rounded-2xl shadow-sm p-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Style your QR</h2>
+        {step === "type" ? (
+          <section className="bg-card rounded-2xl shadow-sm p-5 max-w-3xl mx-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold">Select QR type</h2>
               <button
                 onClick={() => setHistoryOpen(true)}
-                className="size-9 rounded-full border border-border hover:bg-muted hover:border-primary/40 transition flex items-center justify-center text-muted-foreground hover:text-primary"
+                className="h-10 px-4 rounded-full border border-border hover:bg-muted hover:border-primary/40 transition flex items-center gap-2 text-sm font-medium text-primary"
                 aria-label="History"
-                title="History"
               >
-                <History className="size-4" />
+                <History className="size-4" /> History
               </button>
             </div>
-
-
-            <Label>Theme</Label>
-            <div className="grid grid-cols-3 gap-2 mb-5">
-              {(Object.keys(THEMES) as Theme[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => applyTheme(t)}
-                  className={cn(
-                    "rounded-xl border p-3 flex flex-col items-center gap-2 transition",
-                    theme === t ? "bg-selected border-selected-border" : "border-border hover:bg-muted",
-                  )}
-                >
-                  <div
-                    className="size-12 rounded-full border border-black/10"
-                    style={{
-                      background:
-                        t === "white" ? "radial-gradient(circle at 30% 30%, #ffffff, #e5e7eb)" :
-                        t === "black" ? "radial-gradient(circle at 30% 30%, #4a4a4a, #050505)" :
-                        t === "paper" ? "radial-gradient(circle at 30% 30%, #fffbe6, #e6d9a8)" :
-                        t === "midnight" ? "radial-gradient(circle at 30% 30%, #4a5bd8, #0a0a1f)" :
-                        "radial-gradient(circle at 30% 30%, #fff, #f3c7e0 60%, #c7b8e8)",
-                    }}
-                  />
-                  <span className="text-xs font-medium">{THEMES[t].label}</span>
-                </button>
+            <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {QR_TYPES.map((t) => (
+                <li key={t.id}>
+                  <button
+                    onClick={() => { setType(t.id); setFileData(null); setStep("design"); }}
+                    className="w-full aspect-square flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border border-border hover:bg-selected hover:border-selected-border transition"
+                  >
+                    <QRTypeIcon type={t.id} />
+                    <span className="font-medium text-sm">{t.label}</span>
+                  </button>
+                </li>
               ))}
-            </div>
-
-            <Label>Pattern</Label>
-            <div className="grid grid-cols-5 gap-2 mb-5">
-              {PATTERNS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPattern(p)}
-                  className={cn(
-                    "aspect-square rounded-xl border flex items-center justify-center transition bg-white",
-                    pattern === p ? "border-selected-border bg-selected" : "border-border hover:bg-muted",
-                  )}
-                >
-                  <PatternThumb pattern={p} />
-                </button>
-              ))}
-            </div>
-
-            <Label>Colors</Label>
-            <div className="text-xs text-muted-foreground mt-1 mb-2">QR Code</div>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {QR_COLORS.map((c) => (
-                <ColorSwatch key={c} color={c} selected={fg === c} onClick={() => setFg(c)} />
-              ))}
-              <ColorPicker value={fg} onChange={setFg} rainbow />
-            </div>
-            <div className="text-xs text-muted-foreground mt-1 mb-2">Background</div>
-            <div className="flex flex-wrap gap-2 mb-5">
-              {BG_COLORS.slice(0, 7).map((c) => (
-                <ColorSwatch key={c} color={c} selected={bg === c} onClick={() => setBg(c)} bordered />
-              ))}
-              <ColorPicker value={bg} onChange={setBg} />
-            </div>
-
-            <Label>Download Size</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["social", "card", "print"] as SizePreset[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSize(s)}
-                  className={cn(
-                    "h-10 rounded-xl border text-sm font-medium capitalize transition",
-                    size === s ? "bg-selected border-selected-border text-foreground" : "border-border hover:bg-muted",
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            </ul>
           </section>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-5xl mx-auto">
+            <section className="bg-card rounded-2xl shadow-sm p-5">
+              <h2 className="text-lg font-bold mb-4">Live preview</h2>
+              <div
+                className="rounded-2xl p-6 flex items-center justify-center transition-colors"
+                style={{ backgroundColor: bg }}
+              >
+                <QRPreview data={data || "https://example.com"} fg={fg} bg={bg} pattern={pattern} size={280} />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 mt-4">
+                <button
+                  onClick={onDownload}
+                  disabled={!hasData}
+                  className={cn(
+                    "flex-1 min-w-[140px] h-11 rounded-full font-medium transition",
+                    hasData ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-muted text-muted-foreground cursor-not-allowed",
+                  )}
+                >
+                  Download QR code
+                </button>
+                <button
+                  onClick={onSave}
+                  disabled={!hasData}
+                  className={cn(
+                    "h-11 px-4 rounded-xl border flex items-center gap-1.5 transition text-sm font-medium",
+                    savedMsg ? "bg-primary/10 border-primary text-primary" : "border-border hover:bg-muted disabled:opacity-50",
+                  )}
+                >
+                  {savedMsg ? <><Check className="size-4" /> Saved</> : <><Save className="size-4" /> Save</>}
+                </button>
+                <button
+                  onClick={onCopy}
+                  disabled={!hasData}
+                  className="size-11 rounded-xl border border-border flex items-center justify-center hover:bg-muted transition disabled:opacity-50"
+                  aria-label="Copy QR content"
+                >
+                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                </button>
+              </div>
+
+              <div className="mt-6">
+                <DynamicForm
+                  type={type}
+                  url={url} setUrl={setUrl}
+                  text={text} setText={setText}
+                  wifi={wifi} setWifi={setWifi}
+                  email={email} setEmail={setEmail}
+                  sms={sms} setSms={setSms}
+                  fileData={fileData}
+                  onFile={handleFile}
+                  uploading={uploading}
+                />
+                <p className="text-sm text-primary/80 mt-3">Your QR code updates automatically</p>
+              </div>
+            </section>
+
+            <section className="bg-card rounded-2xl shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold">Style your QR</h2>
+                <button
+                  onClick={() => setHistoryOpen(true)}
+                  className="size-9 rounded-full border border-border hover:bg-muted hover:border-primary/40 transition flex items-center justify-center text-muted-foreground hover:text-primary"
+                  aria-label="History"
+                >
+                  <History className="size-4" />
+                </button>
+              </div>
+
+              <Label>Theme</Label>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-5">
+                {(Object.keys(THEMES) as Theme[]).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => applyTheme(t)}
+                    className={cn(
+                      "rounded-xl border p-3 flex flex-col items-center gap-2 transition",
+                      theme === t ? "bg-selected border-selected-border" : "border-border hover:bg-muted",
+                    )}
+                  >
+                    <div
+                      className="size-10 rounded-full border border-black/10"
+                      style={{
+                        background:
+                          t === "white" ? "radial-gradient(circle at 30% 30%, #ffffff, #e5e7eb)" :
+                          t === "black" ? "radial-gradient(circle at 30% 30%, #4a4a4a, #050505)" :
+                          t === "paper" ? "radial-gradient(circle at 30% 30%, #fffbe6, #e6d9a8)" :
+                          t === "midnight" ? "radial-gradient(circle at 30% 30%, #4a5bd8, #0a0a1f)" :
+                          "radial-gradient(circle at 30% 30%, #fff, #f3c7e0 60%, #c7b8e8)",
+                      }}
+                    />
+                    <span className="text-xs font-medium">{THEMES[t].label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <Label>Pattern</Label>
+              <div className="grid grid-cols-5 gap-2 mb-5">
+                {PATTERNS.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPattern(p)}
+                    className={cn(
+                      "aspect-square rounded-xl border flex items-center justify-center transition bg-white",
+                      pattern === p ? "border-selected-border bg-selected" : "border-border hover:bg-muted",
+                    )}
+                  >
+                    <PatternThumb pattern={p} />
+                  </button>
+                ))}
+              </div>
+
+              <Label>Colors</Label>
+              <div className="text-xs text-muted-foreground mt-1 mb-2">QR Code</div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {QR_COLORS.map((c) => (
+                  <ColorSwatch key={c} color={c} selected={fg === c} onClick={() => setFg(c)} />
+                ))}
+                <ColorPicker value={fg} onChange={setFg} rainbow />
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 mb-2">Background</div>
+              <div className="flex flex-wrap gap-2 mb-5">
+                {BG_COLORS.slice(0, 7).map((c) => (
+                  <ColorSwatch key={c} color={c} selected={bg === c} onClick={() => setBg(c)} bordered />
+                ))}
+                <ColorPicker value={bg} onChange={setBg} />
+              </div>
+
+              <Label>Download Size</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["social", "card", "print"] as SizePreset[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSize(s)}
+                    className={cn(
+                      "h-10 rounded-xl border text-sm font-medium capitalize transition",
+                      size === s ? "bg-selected border-selected-border text-foreground" : "border-border hover:bg-muted",
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
       </div>
+
 
       {historyOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-end" onClick={() => setHistoryOpen(false)}>
