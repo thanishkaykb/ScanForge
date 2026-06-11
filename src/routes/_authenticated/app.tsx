@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Copy, Upload, Check, History, LogOut, Trash2, Download, Save, Power, ChevronDown } from "lucide-react";
+import { Copy, Upload, Check, History, LogOut, Trash2, Download, Save, Power, ChevronDown, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QRPreview, downloadQR } from "@/components/QRPreview";
 import { QRTypeIcon } from "@/components/QRTypeIcon";
