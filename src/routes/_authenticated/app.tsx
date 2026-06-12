@@ -12,6 +12,7 @@ import {
   QR_COLORS,
   BG_COLORS,
   SIZE_PX,
+  SIZE_LABELS,
   type QRType,
   type Theme,
   type Pattern,
@@ -195,7 +196,7 @@ function ScanForge() {
 
   const onDownload = async () => {
     if (!hasData) return;
-    await downloadQR({ data, fg, bg, pattern, size: SIZE_PX[size], filename: `scanforge-${type}` });
+    await downloadQR({ data, fg, bg, pattern, size: SIZE_PX[size], filename: `scanforge-${type}-${size}-${SIZE_PX[size]}px` });
   };
 
   const onCopy = async () => {
@@ -215,7 +216,7 @@ function ScanForge() {
     const redirect = `${window.location.origin}/api/public/r/${h.id}`;
     await downloadQR({
       data: redirect, fg: h.fg, bg: h.bg, pattern: h.pattern,
-      size: SIZE_PX[h.size_preset], filename: `scanforge-${h.qr_type}`,
+      size: SIZE_PX[h.size_preset], filename: `scanforge-${h.qr_type}-${h.size_preset}-${SIZE_PX[h.size_preset]}px`,
     });
   };
 
@@ -419,17 +420,18 @@ function ScanForge() {
               </div>
 
               <Label>Download Size</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {(["social", "card", "print"] as SizePreset[]).map((s) => (
                   <button
                     key={s}
                     onClick={() => setSize(s)}
                     className={cn(
-                      "h-10 rounded-xl border text-sm font-medium capitalize transition",
+                      "min-h-14 rounded-xl border px-2 py-2 text-sm font-medium capitalize transition flex flex-col items-center justify-center leading-tight",
                       size === s ? "bg-selected border-selected-border text-foreground" : "border-border hover:bg-muted",
                     )}
                   >
-                    {s}
+                    <span>{s}</span>
+                    <span className="text-[11px] normal-case text-muted-foreground">{SIZE_LABELS[s]}</span>
                   </button>
                 ))}
               </div>
