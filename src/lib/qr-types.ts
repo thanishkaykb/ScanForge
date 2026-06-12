@@ -19,8 +19,14 @@ export type SizePreset = "social" | "card" | "print";
 
 export const SIZE_PX: Record<SizePreset, number> = {
   social: 1080,
-  card: 1050,
+  card: 640,
   print: 2400,
+};
+
+export const SIZE_LABELS: Record<SizePreset, string> = {
+  social: "1080 × 1080 px",
+  card: "640 × 640 px",
+  print: "2400 × 2400 px",
 };
 
 export const THEMES: Record<Theme, { bg: string; fg: string; label: string }> = {
